@@ -1,0 +1,77 @@
+# POST http://localhost:8080/register
+# Content-Type: application/json
+
+# {
+#   "username": "testuser",
+#   "password": "testpassword"
+# }
+
+# POST http://localhost:8080/login
+# Content-Type: application/json
+
+# {
+#   "username": "testuser",
+#   "password": "testpassword"
+# }
+
+# GET http://localhost:8080/protected
+# Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwiaXNzIjoiZ28tbWFya2V0cGxhY2UiLCJleHAiOjE3NTMxMTk2MjUsImlhdCI6MTc1MzAzMzIyNX0.0N5VcCfN2h7_UlR786JM93VVUWh-iUKL5biUquiawEg
+
+
+
+### Регистрация пользователя
+POST http://localhost:8080/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "testpass123"
+}
+
+###
+
+### Авторизация пользователя (логин)
+POST http://localhost:8080/login
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "testpass123"
+}
+
+###
+
+# !!! ВСТАВЬ полученный токен ниже в Authorization хедер вручную
+# Пример: Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+### Размещение объявления (авторизация через токен)
+POST http://localhost:8080/ads
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwiaXNzIjoiZ28tbWFya2V0cGxhY2UiLCJleHAiOjE3NTMxMjY3MDEsImlhdCI6MTc1MzA0MDMwMX0.4QbkVj7pAiwFFfw2NMbyyYIzwH8n0mFAfLW6eYaPgvc
+
+{
+  "title": "Продам гараж",
+  "description": "Гараж достался от деда. Дед в подарок",
+  "image_url": "https://images.unsplash.com/photo-1570129476815-ba368ac77013?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+  "price": 12000
+}
+###
+
+POST http://localhost:8080/ads
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwiaXNzIjoiZ28tbWFya2V0cGxhY2UiLCJleHAiOjE3NTMxMjY3MDEsImlhdCI6MTc1MzA0MDMwMX0.4QbkVj7pAiwFFfw2NMbyyYIzwH8n0mFAfLW6eYaPgvc
+
+{
+  "title": "Продам велосипед",
+  "description": "Отличный велосипед, почти новый, в хорошем состоянии.",
+  "image_url": "http://example.com/image.jpg",
+  "price": 12000
+}
+
+###
+
+### Получение ленты объявлений
+GET http://localhost:8080/ads?page=1&limit=10&sort=created_at&order=desc
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwiaXNzIjoiZ28tbWFya2V0cGxhY2UiLCJleHAiOjE3NTMxMjY3MDEsImlhdCI6MTc1MzA0MDMwMX0.4QbkVj7pAiwFFfw2NMbyyYIzwH8n0mFAfLW6eYaPgvc
+Accept: application/json
+
