@@ -58,13 +58,33 @@ func GetAdsHandler(w http.ResponseWriter, r *http.Request) {
 
 	offset := (page - 1) * limit
 
+	query := db.GetDB().Preload("User")
+
+	// Фильтрация по цене
+	if minStr := r.URL.Query().Get("min_price"); minStr != "" {
+		if min, err := strconv.ParseFloat(minStr, 64); err == nil {
+			query = query.Where("price >= ?", min)
+		} else {
+			http.Error(w, "Невалидный параметр min_price", http.StatusBadRequest)
+			return
+		}
+	}
+	if maxStr := r.URL.Query().Get("max_price"); maxStr != "" {
+		if max, err := strconv.ParseFloat(maxStr, 64); err == nil {
+			query = query.Where("price <= ?", max)
+		} else {
+			http.Error(w, "Невалидный параметр max_price", http.StatusBadRequest)
+			return
+		}
+	}
+
 	var ads []models.Ad
-	err := db.GetDB().
-		Preload("User").
+	err := query.
 		Order(sortField + " " + order).
 		Limit(limit).
 		Offset(offset).
 		Find(&ads).Error
+
 	if err != nil {
 		http.Error(w, "Ошибка при получении объявлений", http.StatusInternalServerError)
 		return
@@ -77,6 +97,7 @@ func GetAdsHandler(w http.ResponseWriter, r *http.Request) {
 		ImageURL    string  `json:"image_url"`
 		Price       float64 `json:"price"`
 		CreatedAt   string  `json:"created_at"`
+		IsOwner     bool    `json:"is_owner"`
 		User        struct {
 			ID       uint   `json:"id"`
 			Username string `json:"username"`
@@ -93,6 +114,7 @@ func GetAdsHandler(w http.ResponseWriter, r *http.Request) {
 		resp[i].CreatedAt = ad.CreatedAt.Format("2006-01-02T15:04:05Z07:00")
 		resp[i].User.ID = ad.User.ID
 		resp[i].User.Username = ad.User.Username
+		resp[i].IsOwner = (ad.User.Username == username)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

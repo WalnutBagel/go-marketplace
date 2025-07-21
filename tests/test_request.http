@@ -36,12 +36,14 @@ Authorization: Bearer auth_token
 
 ### Создание объявления с токеном (успешно)
 POST http://localhost:8080/ads
-Authorization: Bearer auth_token
 Content-Type: application/json
+Authorization: Bearer auth_token
 
 {
-  "title": "Первое объявление",
-  "description": "Описание первого объявления"
+  "title": "Test Ad",
+  "description": "This is a test ad description",
+  "image_url": "http://example.com/image.jpg",
+  "price": 99.99
 }
 
 ### Создание объявления с пустым заголовком (ожидаем ошибку)
