@@ -24,24 +24,21 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-// Создаёт JWT токен на основе username
 func GenerateJWT(username string) (string, error) {
 	claims := &Claims{
 		Username: username,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // срок жизни токена 24 часа
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "go-marketplace",
 		},
 	}
-
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(jwtSecret)
 }
 
-// Проверяет токен и возвращает username, если валидно
 func ParseJWT(tokenStr string) (string, error) {
-	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (interface{}, error) {
 		return jwtSecret, nil
 	})
 
@@ -53,5 +50,5 @@ func ParseJWT(tokenStr string) (string, error) {
 		return claims.Username, nil
 	}
 
-	return "", errors.New("недействительный токен")
+	return "", errors.New("токен недействителен или истёк")
 }

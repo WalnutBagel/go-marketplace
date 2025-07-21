@@ -4,49 +4,57 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-var DB *gorm.DB // глобальная переменная для хранения подключения
+var (
+	dbInstance *gorm.DB
+	once       sync.Once
+)
 
-// ConnectWithRetry подключается к БД с повторными попытками
 func ConnectWithRetry() (*gorm.DB, error) {
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	sslMode := os.Getenv("DB_SSLMODE")
-
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
-		dbHost, dbUser, dbPassword, dbName, dbPort, sslMode)
-
 	var err error
-	for attempts := 1; attempts <= 10; attempts++ {
-		DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-		if err == nil {
-			sqlDB, err := DB.DB()
-			if err != nil {
-				return nil, err
-			}
-			err = sqlDB.Ping()
-			if err == nil {
-				log.Println("✅ Успешное подключение к БД")
-				return DB, nil
-			}
-		}
 
-		log.Printf("Пытаемся подключиться к БД... попытка %d/10", attempts)
-		time.Sleep(2 * time.Second)
+	once.Do(func() {
+		dbUser := os.Getenv("DB_USER")
+		dbPassword := os.Getenv("DB_PASSWORD")
+		dbName := os.Getenv("DB_NAME")
+		dbHost := os.Getenv("DB_HOST")
+		dbPort := os.Getenv("DB_PORT")
+		sslMode := os.Getenv("DB_SSLMODE")
+
+		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+			dbHost, dbUser, dbPassword, dbName, dbPort, sslMode)
+
+		for attempts := 1; attempts <= 10; attempts++ {
+			dbInstance, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+			if err == nil {
+				sqlDB, err := dbInstance.DB()
+				if err == nil && sqlDB.Ping() == nil {
+					log.Println("✅ Успешное подключение к БД")
+					return
+				}
+			}
+
+			log.Printf("⌛ Попытка подключения к БД %d/10...", attempts)
+			time.Sleep(2 * time.Second)
+		}
+	})
+
+	if dbInstance == nil {
+		return nil, fmt.Errorf("не удалось подключиться к БД: %w", err)
 	}
 
-	return nil, fmt.Errorf("не удалось подключиться к БД: %w", err)
+	return dbInstance, nil
 }
 
-// GetDB возвращает текущее подключение к базе
 func GetDB() *gorm.DB {
-	return DB
+	if dbInstance == nil {
+		log.Fatal("База данных не инициализирована. Вызовите ConnectWithRetry() сначала.")
+	}
+	return dbInstance
 }

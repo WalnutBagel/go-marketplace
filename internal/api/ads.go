@@ -12,57 +12,59 @@ import (
 )
 
 func GetAdsHandler(w http.ResponseWriter, r *http.Request) {
-	username, ok := r.Context().Value(middleware.UserContextKey).(string)
+	username, ok := middleware.GetUsername(r)
 	if !ok || username == "" {
 		http.Error(w, "Отсутствует авторизация", http.StatusUnauthorized)
 		return
 	}
 
-	pageStr := r.URL.Query().Get("page")
-	limitStr := r.URL.Query().Get("limit")
-	sortField := r.URL.Query().Get("sort")
-	order := strings.ToUpper(r.URL.Query().Get("order"))
+	// Парсим параметры пагинации и сортировки с дефолтами
+	page := 1
+	limit := 10
+	sortField := "created_at"
+	order := "DESC"
 
-	if pageStr == "" {
-		pageStr = "1"
-	}
-	if limitStr == "" {
-		limitStr = "10"
-	}
-	if sortField == "" {
-		sortField = "created_at"
-	}
-	if order != "ASC" && order != "DESC" {
-		order = "DESC"
+	if p := r.URL.Query().Get("page"); p != "" {
+		if val, err := strconv.Atoi(p); err == nil && val > 0 {
+			page = val
+		} else {
+			http.Error(w, "Невалидный параметр page", http.StatusBadRequest)
+			return
+		}
 	}
 
-	page, err := strconv.Atoi(pageStr)
-	if err != nil || page < 1 {
-		http.Error(w, "Невалидный параметр page", http.StatusBadRequest)
-		return
-	}
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit < 1 || limit > 100 {
-		http.Error(w, "Невалидный параметр limit", http.StatusBadRequest)
-		return
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if val, err := strconv.Atoi(l); err == nil && val > 0 && val <= 100 {
+			limit = val
+		} else {
+			http.Error(w, "Невалидный параметр limit", http.StatusBadRequest)
+			return
+		}
 	}
 
-	allowedSortFields := map[string]bool{"created_at": true, "price": true, "title": true}
-	if !allowedSortFields[sortField] {
-		http.Error(w, "Невалидное поле сортировки", http.StatusBadRequest)
-		return
+	if sf := r.URL.Query().Get("sort"); sf != "" {
+		allowedSorts := map[string]bool{"created_at": true, "price": true, "title": true}
+		if allowedSorts[sf] {
+			sortField = sf
+		} else {
+			http.Error(w, "Невалидное поле сортировки", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if o := strings.ToUpper(r.URL.Query().Get("order")); o == "ASC" || o == "DESC" {
+		order = o
 	}
 
 	offset := (page - 1) * limit
 
 	var ads []models.Ad
-	err = db.GetDB().
+	err := db.GetDB().
+		Preload("User").
 		Order(sortField + " " + order).
 		Limit(limit).
 		Offset(offset).
-		Preload("User").
 		Find(&ads).Error
-
 	if err != nil {
 		http.Error(w, "Ошибка при получении объявлений", http.StatusInternalServerError)
 		return

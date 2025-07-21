@@ -1,0 +1,96 @@
+### Регистрация нового пользователя (успешно)
+POST http://localhost:8080/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "password123"
+}
+
+### Регистрация с уже занятым именем (ожидаем ошибку)
+POST http://localhost:8080/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "anotherpass"
+}
+
+### Логин (успешно)
+POST http://localhost:8080/login
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "password123"
+}
+
+### заменяем auth_token полученным токеном
+
+### Попытка получить объявления без токена (ожидаем 401 Unauthorized)
+GET http://localhost:8080/ads
+
+### Получение списка объявлений с токеном
+GET http://localhost:8080/ads
+Authorization: Bearer auth_token
+
+### Создание объявления с токеном (успешно)
+POST http://localhost:8080/ads
+Authorization: Bearer auth_token
+Content-Type: application/json
+
+{
+  "title": "Первое объявление",
+  "description": "Описание первого объявления"
+}
+
+### Создание объявления с пустым заголовком (ожидаем ошибку)
+POST http://localhost:8080/ads
+Authorization: Bearer auth_token
+Content-Type: application/json
+
+{
+  "title": "",
+  "description": "Пустой заголовок"
+}
+
+### Получение списка объявлений (должно быть минимум 1)
+GET http://localhost:8080/ads
+Authorization: Bearer auth_token
+
+### Обновление объявления (укажи ID из ответа создания)
+PUT http://localhost:8080/ads/1
+Authorization: Bearer auth_token
+Content-Type: application/json
+
+{
+  "title": "Обновленное объявление",
+  "description": "Обновленное описание"
+}
+
+### Обновление несуществующего объявления (ожидаем 404)
+PUT http://localhost:8080/ads/9999
+Authorization: Bearer auth_token
+Content-Type: application/json
+
+{
+  "title": "Обновление несуществующего",
+  "description": "Текст"
+}
+
+### Удаление объявления
+DELETE http://localhost:8080/ads/1
+Authorization: Bearer auth_token
+
+### Удаление несуществующего объявления (ожидаем 404)
+DELETE http://localhost:8080/ads/9999
+Authorization: Bearer auth_token
+
+### Попытка создать объявление без токена (ожидаем 401)
+POST http://localhost:8080/ads
+Content-Type: application/json
+
+{
+  "title": "Объявление без авторизации",
+  "description": "Должно быть запрещено"
+}

@@ -19,7 +19,6 @@ type RegisterRequest struct {
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Невалидный JSON", http.StatusBadRequest)
 		return
@@ -28,27 +27,23 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	req.Username = strings.TrimSpace(req.Username)
 	req.Password = strings.TrimSpace(req.Password)
 
-	// Валидация
 	if len(req.Username) < 3 || len(req.Password) < 6 {
 		http.Error(w, "Невалидный логин или пароль", http.StatusBadRequest)
 		return
 	}
 
-	// Проверка: существует ли уже пользователь
 	var existing models.User
 	if err := db.GetDB().Where("username = ?", req.Username).First(&existing).Error; err == nil {
 		http.Error(w, "Пользователь уже существует", http.StatusConflict)
 		return
 	}
 
-	// Хэшируем пароль
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, "Ошибка хэширования пароля", http.StatusInternalServerError)
 		return
 	}
 
-	// Создаем пользователя
 	user := models.User{
 		Username: req.Username,
 		Password: string(hashedPassword),
@@ -59,7 +54,6 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Возвращаем JSON без пароля
 	resp := map[string]interface{}{
 		"id":       user.ID,
 		"username": user.Username,
@@ -96,8 +90,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
-	if err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
 		http.Error(w, "Неверный логин или пароль", http.StatusUnauthorized)
 		return
 	}
