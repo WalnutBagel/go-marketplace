@@ -7,15 +7,22 @@ import (
 	"strings"
 
 	"github.com/WalnutBagel/go-marketplace/internal/db"
-	"github.com/WalnutBagel/go-marketplace/internal/middleware"
 	"github.com/WalnutBagel/go-marketplace/internal/models"
+	"github.com/WalnutBagel/go-marketplace/internal/services"
 )
 
 func GetAdsHandler(w http.ResponseWriter, r *http.Request) {
-	username, ok := middleware.GetUsername(r)
-	if !ok || username == "" {
-		http.Error(w, "Отсутствует авторизация", http.StatusUnauthorized)
-		return
+	// Попытка получить username из токена, если есть
+	username := ""
+	tokenStr := r.Header.Get("Authorization")
+	if tokenStr != "" {
+		// Обычно Authorization: "Bearer <token>", нужно убрать "Bearer "
+		tokenStr = strings.TrimPrefix(tokenStr, "Bearer ")
+
+		userFromToken, err := services.ParseJWT(tokenStr)
+		if err == nil {
+			username = userFromToken
+		}
 	}
 
 	// Парсим параметры пагинации и сортировки с дефолтами

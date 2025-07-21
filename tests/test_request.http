@@ -63,11 +63,11 @@ Authorization: Bearer auth_token
 ### Обновление объявления (укажи ID из ответа создания)
 PUT http://localhost:8080/ads/1
 Authorization: Bearer auth_token
-Content-Type: application/json
 
 {
   "title": "Обновленное объявление",
-  "description": "Обновленное описание"
+  "description": "Обновленное описание",
+  "price": 89.99
 }
 
 ### Обновление несуществующего объявления (ожидаем 404)

@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -10,37 +11,47 @@ import (
 	"github.com/WalnutBagel/go-marketplace/internal/db"
 	"github.com/WalnutBagel/go-marketplace/internal/models"
 	"github.com/WalnutBagel/go-marketplace/internal/services"
+	"github.com/WalnutBagel/go-marketplace/internal/utils"
 )
+
+// --- STRUCTS ---
 
 type RegisterRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
+type LoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// --- HANDLERS ---
+
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Невалидный JSON", http.StatusBadRequest)
+		utils.WriteJSONError(w, http.StatusBadRequest, "Невалидный JSON")
 		return
 	}
 
 	req.Username = strings.TrimSpace(req.Username)
 	req.Password = strings.TrimSpace(req.Password)
 
-	if len(req.Username) < 3 || len(req.Password) < 6 {
-		http.Error(w, "Невалидный логин или пароль", http.StatusBadRequest)
+	if err := validateCredentials(req.Username, req.Password); err != nil {
+		utils.WriteJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	var existing models.User
 	if err := db.GetDB().Where("username = ?", req.Username).First(&existing).Error; err == nil {
-		http.Error(w, "Пользователь уже существует", http.StatusConflict)
+		utils.WriteJSONError(w, http.StatusConflict, "Пользователь с таким логином уже существует")
 		return
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		http.Error(w, "Ошибка хэширования пароля", http.StatusInternalServerError)
+		utils.WriteJSONError(w, http.StatusInternalServerError, "Ошибка при хэшировании пароля")
 		return
 	}
 
@@ -50,28 +61,20 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.GetDB().Create(&user).Error; err != nil {
-		http.Error(w, "Ошибка при сохранении пользователя", http.StatusInternalServerError)
+		utils.WriteJSONError(w, http.StatusInternalServerError, "Ошибка при сохранении пользователя")
 		return
 	}
 
-	resp := map[string]interface{}{
+	utils.WriteJSON(w, http.StatusCreated, map[string]any{
 		"id":       user.ID,
 		"username": user.Username,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	})
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	type LoginRequest struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
-
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Невалидный JSON", http.StatusBadRequest)
+		utils.WriteJSONError(w, http.StatusBadRequest, "Невалидный JSON")
 		return
 	}
 
@@ -79,32 +82,42 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	req.Password = strings.TrimSpace(req.Password)
 
 	if req.Username == "" || req.Password == "" {
-		http.Error(w, "Логин и пароль обязательны", http.StatusBadRequest)
+		utils.WriteJSONError(w, http.StatusBadRequest, "Логин и пароль обязательны")
 		return
 	}
 
 	var user models.User
 	err := db.GetDB().Where("username = ?", req.Username).First(&user).Error
 	if err != nil {
-		http.Error(w, "Неверный логин или пароль", http.StatusUnauthorized)
+		utils.WriteJSONError(w, http.StatusUnauthorized, "Неверный логин или пароль")
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		http.Error(w, "Неверный логин или пароль", http.StatusUnauthorized)
+		utils.WriteJSONError(w, http.StatusUnauthorized, "Неверный логин или пароль")
 		return
 	}
 
 	token, err := services.GenerateJWT(user.Username)
 	if err != nil {
-		http.Error(w, "Ошибка генерации токена", http.StatusInternalServerError)
+		utils.WriteJSONError(w, http.StatusInternalServerError, "Ошибка генерации токена")
 		return
 	}
 
-	resp := map[string]string{
-		"token": token,
-	}
+	utils.WriteJSON(w, http.StatusOK, map[string]string{"token": token})
+}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+// --- HELPERS ---
+
+func validateCredentials(username, password string) error {
+	if len(username) < 3 || len(username) > 30 {
+		return fmt.Errorf("логин должен быть от 3 до 30 символов")
+	}
+	if strings.Contains(username, " ") {
+		return fmt.Errorf("логин не должен содержать пробелы")
+	}
+	if len(password) < 6 {
+		return fmt.Errorf("пароль должен быть не менее 6 символов")
+	}
+	return nil
 }
